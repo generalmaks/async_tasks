@@ -42,6 +42,40 @@ class Program
             });
         }
     }
+
+    static void TestAsyncMap()
+    {
+        MapAsync(new int[] { 1, 5, 1, 7, 1, 7, 9, 3, 2, 0 },
+            (item, cb) =>
+            {
+                ThreadPool.QueueUserWorkItem((state) =>
+                {
+                    Thread.Sleep(1000);
+                    try
+                    {
+                        if (item % 2 == 0)
+                            cb(new ItemInfo<int>(item * 2));
+                        else
+                            throw new Exception($"Bad number: {item}");
+                    }
+                    catch (Exception error)
+                    {
+                        cb(new ItemInfo<int>(error));
+                    }
+                });
+            },
+            (errors, results) =>
+            {
+                foreach (Exception error in errors)
+                    Console.WriteLine($"Error is: {error.Message}");
+
+                foreach (var item in results)
+                    Console.WriteLine($"Result is: {item}");
+            }
+        );
+
+        Thread.Sleep(5000);
+    }
 }
 
 public struct ItemInfo<T>
