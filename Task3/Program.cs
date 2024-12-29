@@ -1,4 +1,4 @@
-﻿namespace Task2;
+﻿namespace Task3;
 
 class Program
 {
@@ -14,7 +14,7 @@ class Program
             });
             return result;
         };
-        var strings = new string[]
+        var strings = new[]
         {
             "Hello World!",
             "Goodbye World!",
@@ -23,60 +23,41 @@ class Program
             "Hello again!",
             "See you tomorrow!",
         };
-        var finalTask = MapAsync(strings, func);
+        var cts = new CancellationTokenSource();
+        Console.WriteLine("Operation has started. Press any key to abort");
+        var finalTask = MapAsync(strings, func, cts.Token);
+        Task.Run(() =>
+        {
+            Console.ReadKey();
+            cts.Cancel();
+            Console.WriteLine("ABORTED");
+        });
 
         finalTask.ContinueWith(result =>
         {
-            if (result.IsFaulted)
+            if (result.IsFaulted || result.IsCanceled)
             {
                 var a = result.Exception.Flatten().InnerExceptions;
                 foreach (var ex in a)
                     Console.WriteLine(ex.GetBaseException().Message);
             }
-            else
-                foreach (var item in result.Result)
-                {
-                    Console.WriteLine($"Result: {item}");
-                }
         }).Wait();
-
-        Func<int, Task<int>> func2 = (number) =>
+        try
         {
-            Task<int> result = Task.Run(() =>
-            {
-                int delayNumber = number * 100;
-                Task.Delay(delayNumber);
-                if (number % 2 == 0)
-                    return number * 2;
-                else
-                    return number;
-            });
-            return result;
-        };
-
-        var numbers = new int[25];
-        for (int i = 0; i < numbers.Length; i++)
-            numbers[i] = i;
-        var finalTask2 = MapAsync(numbers, func2);
-        finalTask2.ContinueWith(task =>
+            finalTask.Wait();
+        }
+        catch (AggregateException ae)
         {
-            if (task.IsFaulted)
-            {
-                Console.WriteLine($"Task failed: {task.Exception?.GetBaseException().Message}");
-            }
-            else
-            {
-                // Output the results
-                foreach (var result in task.Result)
-                {
-                    Console.WriteLine($"Result: {result}");
-                }
-            }
-        });
-        Console.ReadLine();
+            Console.WriteLine("Errors occurred:");
+            foreach (var inner in ae.InnerExceptions)
+                Console.WriteLine(inner.Message);
+        }
+
+        Console.WriteLine("Operation has ended. Press any key to end");
+        Console.ReadKey();
     }
 
-    static Task<T[]> MapAsync<T>(T[] array, Func<T, Task<T>> func)
+    static Task<T[]> MapAsync<T>(T[] array, Func<T, Task<T>> func, CancellationToken token)
     {
         var t = Task.Run(() =>
         {
@@ -86,19 +67,26 @@ class Program
 
             for (int i = 0; i < length; i++)
             {
+                Task.Delay(1000).Wait();
+                token.ThrowIfCancellationRequested();
+
                 int index = i;
                 tasks[index] = func(array[index]).ContinueWith(task =>
                 {
+                    Console.WriteLine("IS FAULTED");
                     if (task.IsFaulted)
                         throw task.Exception.GetBaseException();
-
+                    else if (task.IsCanceled)
+                        Console.WriteLine($"Task canceled at index {index}");
+                    else
+                        Console.WriteLine($"$RESULT: {task.Result}");
                     results[index] = task.Result;
-                });
+                }, token);
             }
 
             Task.WaitAll(tasks);
             return results;
-        });
+        }, token);
         return t;
     }
 }
