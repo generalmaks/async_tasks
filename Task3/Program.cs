@@ -4,7 +4,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        Func<string, CancellationToken, Task<string>> func = (item, token) =>
+        Func<string, Task<string>> func = (item) =>
         {
             Task<string> result = Task.Run(() =>
             {
@@ -14,8 +14,6 @@ class Program
                     Console.WriteLine($"Result: {result}");
                     return result;
                 }
-                if(token.IsCancellationRequested)
-                    throw new Exception("Cancellation Token requested");
                 throw new Exception($"Bad item: {item}");
             });
             return result;
@@ -38,12 +36,16 @@ class Program
         {
             Console.ReadKey();
             cts.Cancel();
-            Console.WriteLine("ABORTED");
+            Console.WriteLine(" - Key was pressed. Started an abortion.");
         });
 
         finalTask.ContinueWith(result =>
         {
-            if (result.IsFaulted || result.IsCanceled)
+            if (result.IsCanceled)
+            {
+                Console.WriteLine("Operation has been aborted.");
+            }
+            else if (result.IsFaulted)
             {
                 var a = result.Exception.Flatten().InnerExceptions;
                 foreach (var ex in a)
@@ -55,7 +57,7 @@ class Program
         Console.ReadKey();
     }
 
-    static Task<T[]> MapAsync<T>(T[] array, Func<T, CancellationToken, Task<string>> func, CancellationToken token = default)
+    static Task<T[]> MapAsync<T>(T[] array, Func<T, Task<T>> func, CancellationToken token = default)
     {
         var t = Task.Run(() =>
         {
@@ -69,7 +71,7 @@ class Program
                 token.ThrowIfCancellationRequested();
 
                 int index = i;
-                tasks[index] = func(array[index], token);
+                tasks[index] = func(array[index]);
             }
 
             Task.WaitAll(tasks, token);
