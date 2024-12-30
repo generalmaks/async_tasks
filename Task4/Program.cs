@@ -5,18 +5,22 @@ class Program
     static async Task Main(string[] args)
     {
         string filePath = "largefile.txt";
-        await foreach (var line in ReadLines(filePath))
+        int size = 500;
+        await foreach (var line in ReadLines(filePath, size))
         {
             Console.WriteLine(line);
         }
     }
 
-    async static IAsyncEnumerable<string> ReadLines(string filePath)
+    async static IAsyncEnumerable<char[]> ReadLines(string filePath, int size)
     {
         using var reader = new StreamReader(filePath);
         while (!reader.EndOfStream)
         {
-            yield return reader.ReadLine();
+            await Task.Delay(500);
+            char[] buffer = new char[size];
+            await reader.ReadAsync(buffer, 0, size);
+            yield return buffer;
         }
     }
 }
