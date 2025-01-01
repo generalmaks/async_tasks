@@ -19,8 +19,8 @@ class Program
             () => Console.WriteLine("Subscriber 2 completed")
         );
 
-        subject.OnNext("Hello, Reactive Extensions!");
-        subject.OnNext("Learning Rx in C#");
+        subject.OnNext("Hello");
+        subject.OnNext("World!");
 
         subject.OnCompleted();
 
